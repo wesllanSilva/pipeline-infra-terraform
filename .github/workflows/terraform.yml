@@ -53,8 +53,8 @@ jobs:
       - name: "Read destroy configuration"
         id: read-destroy-config
         run: |
-          DESTROY_CONFIG="$(jq -r '.${{ inputs.environment }}' ./infra/destroy_config.json)"
-            echo "DESTROY_CONFIG=$(DESTROY_CONFIG)" >> $GITHUB_OUTPUT
+          DESTROY="$(jq -r '.${{ inputs.environment }}' ./infra/destroy_config.json)"
+            echo "destroy=$(DESTROY)" >> $GITHUB_OUTPUT
 
       
       - name: "Terraform Init"
@@ -66,24 +66,24 @@ jobs:
             -backend-config="dynamodb_table=${{ inputs.aws-lock-dynamodb-table }}"
 
       - name: "Terraform Validate"
-        run: |
-          terraform validate
+        run: terraform validate
 
       - name: "Terraform Destroy"
-        if: steps.read-destroy-config.outputs.DESTROY_CONFIG == 'true'
+        if: steps.read-destroy-config.outputs.destroy == 'true'
+        id: terraform-destroy
         run: cd infra &&
           terraform workspace select ${{ inputs.environment }} || terraform workspace new ${{ inputs.environment }} &&
           terraform destroy -var-file="./envs/${{ inputs.environment }}/terraform.tfvars" -auto-approve
 
       - name: "Terraform Plan"
-        if: steps.read-destroy-config.outputs.DESTROY_CONFIG != 'true'
+        if: steps.read-destroy-config.outputs.destroy != 'true'
         id: terraform-plan
         run: cd infra &&
           terraform workspace select ${{ inputs.environment }} || terraform workspace new ${{ inputs.environment }} &&
           terraform plan -var-file="./envs/${{ inputs.environment }}/terraform.tfvars" -out=${{ inputs.environment }}.plan
 
       - name: "Terraform Apply"
-        if: steps.read-destroy-config.outputs.DESTROY_CONFIG != 'true'
+        if: steps.read-destroy-config.outputs.destroy != 'true'
         id: terraform-apply
         run: cd infra &&
           terraform workspace select ${{ inputs.environment }} || terraform workspace new ${{ inputs.environment }} &&
